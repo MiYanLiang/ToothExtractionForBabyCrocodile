@@ -13,379 +13,403 @@ using System.Threading;
 /// </summary>
 namespace UDPClientModule
 {
-	public class UDPClientComponent : MonoBehaviour {
+    public class UDPClientComponent : MonoBehaviour
+    {
 
-		private string  serverURL;
+        private string serverURL;
 
-		private int serverPort;
-		
-		int clientPort;
+        private int serverPort;
 
-		private UdpClient udpClient;
+        int clientPort;
 
-		private readonly object udpClientLock = new object();
+        private UdpClient udpClient;
 
-		static private readonly char[] Delimiter = new char[] {':'};
+        private readonly object udpClientLock = new object();
 
-		string receivedMsg = string.Empty;
+        static private readonly char[] Delimiter = new char[] { ':' };
 
-		private Dictionary<string, List<Action<SocketUDPEvent>>> handlers;
+        string receivedMsg = string.Empty;
 
-		private Queue<SocketUDPEvent> eventQueue;
+        private Dictionary<string, List<Action<SocketUDPEvent>>> handlers;
 
-		private object eventQueueLock;
+        private Queue<SocketUDPEvent> eventQueue;
 
-		private IPEndPoint endPoint;
+        private object eventQueueLock;
 
-		private string listenerInput = string.Empty;
+        private IPEndPoint endPoint;
 
-		public enum UDPSocketState {DISCONNECTED,CONNECTED,ERROR,SENDING_MESSAGE};
+        private string listenerInput = string.Empty;
 
-		public UDPSocketState udpSocketState;
+        public enum UDPSocketState { DISCONNECTED, CONNECTED, ERROR, SENDING_MESSAGE };
 
-		private Thread tListenner;
+        public UDPSocketState udpSocketState;
 
-		public string serverIP = string.Empty;
+        private Thread tListenner;
 
-		public bool noNetwork;
+        public string serverIP = string.Empty;
 
-		public string localNetworkIP;
+        public bool noNetwork;
 
-
-		public void Awake()
-		{
-			handlers = new Dictionary<string, List<Action<SocketUDPEvent>>>();
-
-			eventQueueLock = new object();
-
-			eventQueue = new Queue<SocketUDPEvent>();
-
-	
-			udpSocketState = UDPSocketState.DISCONNECTED;
-		}
+        public string localNetworkIP;
 
 
+        public void Awake()
+        {
+            handlers = new Dictionary<string, List<Action<SocketUDPEvent>>>();
+
+            eventQueueLock = new object();
+
+            eventQueue = new Queue<SocketUDPEvent>();
 
 
-		/// <summary>
-		/// open a connection with the specific server using the server URL (IP) and server Port.
-		/// </summary>
-		/// <param name="_serverURL">Server IP.</param>
-		/// <param name="_serverPort">Server port.</param>
-		/// <param name="_clientPort">Client port.</param>
-		public void connect(string _serverURL, int _serverPort, int _clientPort) {
-
-		//	Debug.Log ("tentando estabelecer conexão com o servidor");
-			if ( tListenner != null && tListenner.IsAlive) {
-				
-				disconnect();
-
-				while (tListenner != null && tListenner.IsAlive) {
-
-
-				}
-			}
-
-			//host udp server
-			this.serverURL = _serverURL;
-
-			//server port
-			this.serverPort = _serverPort;
-
-			//client port
-			this.clientPort = _clientPort;
-			
-			// start  listener thread
-			tListenner = new Thread(
-				new ThreadStart(OnListeningServer));
-			
-			tListenner.IsBackground = true;
-
-			tListenner.Start();
+            udpSocketState = UDPSocketState.DISCONNECTED;
+        }
 
 
 
-		}
+
+        /// <summary>
+        /// open a connection with the specific server using the server URL (IP) and server Port.
+        /// </summary>
+        /// <param name="_serverURL">Server IP.</param>
+        /// <param name="_serverPort">Server port.</param>
+        /// <param name="_clientPort">Client port.</param>
+        public void connect(string _serverURL, int _serverPort, int _clientPort)
+        {
+
+            //	Debug.Log ("tentando estabelecer conexão com o servidor");
+            if (tListenner != null && tListenner.IsAlive)
+            {
+
+                disconnect();
+
+                while (tListenner != null && tListenner.IsAlive)
+                {
 
 
-		public void  OnListeningServer()
-		{
+                }
+            }
 
-			try
-			{
-				
-				lock ( udpClientLock) {
-					
-					udpClient = new UdpClient ();
+            //host udp server
+            this.serverURL = _serverURL;
 
-					udpClient.ExclusiveAddressUse = false;
+            //server port
+            this.serverPort = _serverPort;
 
-					udpClient.Client.SetSocketOption(
-						SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            //client port
+            this.clientPort = _clientPort;
 
-					IPEndPoint localEp = new IPEndPoint(IPAddress.Any,clientPort);
+            // start  listener thread
+            tListenner = new Thread(
+                new ThreadStart(OnListeningServer));
 
-					udpClient.Client.Bind(localEp);
+            tListenner.IsBackground = true;
 
-					udpSocketState = UDPSocketState.CONNECTED;
-
-					udpClient.BeginReceive (new AsyncCallback (OnWaitPacketsCallback), null);
-
-
-				}
-
-			}
-			catch
-			{
-				
-				throw;
-			}
-		}
+            tListenner.Start();
 
 
 
-		public void OnWaitPacketsCallback(IAsyncResult res)
-		{
+        }
 
-			lock (udpClientLock) {
 
-				byte[] recPacket = udpClient.EndReceive (res, ref endPoint);
-				MessageReceived(recPacket, endPoint.Address.ToString(), endPoint.Port);
+        public void OnListeningServer()
+        {
 
-				if (recPacket != null && recPacket.Length > 0) {
-					lock (eventQueueLock) {
+            try
+            {
 
-						//decode the received bytes vector in string fotmat
-						//receivedMsg = "callback_name,param 1,param 2,param n, etc."
-						receivedMsg = Encoding.UTF8.GetString (recPacket);
+                lock (udpClientLock)
+                {
 
-						//separates the items contained in the package using the two points ":" as sifter
-						//and it puts them separately in the vector package []
-						/*
+                    udpClient = new UdpClient();
+
+                    udpClient.ExclusiveAddressUse = false;
+
+                    udpClient.Client.SetSocketOption(
+                        SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+
+                    IPEndPoint localEp = new IPEndPoint(IPAddress.Any, clientPort);
+
+                    udpClient.Client.Bind(localEp);
+
+                    udpSocketState = UDPSocketState.CONNECTED;
+
+                    udpClient.BeginReceive(new AsyncCallback(OnWaitPacketsCallback), null);
+
+
+                }
+
+            }
+            catch
+            {
+
+                throw;
+            }
+        }
+
+
+
+        public void OnWaitPacketsCallback(IAsyncResult res)
+        {
+
+            lock (udpClientLock)
+            {
+
+                byte[] recPacket = udpClient.EndReceive(res, ref endPoint);
+                MessageReceived(recPacket, endPoint.Address.ToString(), endPoint.Port);
+
+                if (recPacket != null && recPacket.Length > 0)
+                {
+                    lock (eventQueueLock)
+                    {
+
+                        //decode the received bytes vector in string fotmat
+                        //receivedMsg = "callback_name,param 1,param 2,param n, etc."
+                        receivedMsg = Encoding.UTF8.GetString(recPacket);
+
+                        //separates the items contained in the package using the two points ":" as sifter
+                        //and it puts them separately in the vector package []
+                        /*
 		                  * package[0]= callback_name: e.g.: "PONG"
 		                  * package[1]= message: e.g.: "pong!!!"
 		                  * package[2]=  other message for example!
 			            */
 
-						var package = receivedMsg.Split (Delimiter);
+                        var package = receivedMsg.Split(Delimiter);
 
-						//enqueue
-						eventQueue.Enqueue(new SocketUDPEvent(package [0], receivedMsg));
+                        //enqueue
+                        eventQueue.Enqueue(new SocketUDPEvent(package[0], receivedMsg));
 
-						receivedMsg = string.Empty;	
-					}//END_LOCK
-				}//END_IF
-					
-				udpClient.BeginReceive (new AsyncCallback (OnWaitPacketsCallback), null);
+                        receivedMsg = string.Empty;
+                    }//END_LOCK
+                }//END_IF
 
-			}//END_LOCK
-		}
+                udpClient.BeginReceive(new AsyncCallback(OnWaitPacketsCallback), null);
 
-
-		private void InvokEvent(SocketUDPEvent ev)
-		{
-
-			if (!handlers.ContainsKey(ev.name)) { return; }
-
-			foreach (Action<SocketUDPEvent> handler in this.handlers[ev.name]) {
-				
-				try{
-
-					handler(ev);
-				   } 
-				catch(Exception ex){}
-			}
-		}
+            }//END_LOCK
+        }
 
 
-		public void MessageReceived(byte[] data, string ipHost, int portHost)
-		{
+        private void InvokEvent(SocketUDPEvent ev)
+        {
 
-			//Debug.Log(string.Format("Received data:: {0} of IP:: {1} and Port:: {2}", Encoding.UTF8.GetString (data), ipHost, portHost));
+            if (!handlers.ContainsKey(ev.name)) { return; }
 
-		}
+            foreach (Action<SocketUDPEvent> handler in this.handlers[ev.name])
+            {
 
-		/// <summary>
-		/// listening server messages.
-		/// </summary>
-		/// <param name="ev">Callback name</param>
-		/// <param name="callback">Callback function.</param>
-		public void On(string ev, Action<SocketUDPEvent> callback)
-		{
-			if (!handlers.ContainsKey(ev)) {
-				
-				handlers[ev] = new List<Action<SocketUDPEvent>>();
-			}
+                try
+                {
 
-			handlers[ev].Add(callback);
-		}
-
-		/// <summary>
-		/// Emit the pack or message to server.
-		/// </summary>
-		/// <param name="callbackID">Callback ID.</param>
-		/// <param name="_pack">message</param>
-		public void Emit(string callbackID, string _pack)
-		{
-
-			try{
-
-				if(udpSocketState == UDPSocketState.CONNECTED)
-				{
-					lock ( udpClientLock) {
-						
-						if(udpClient == null)
-						{
-							udpClient = new UdpClient ();
-
-							udpClient.ExclusiveAddressUse = false;
-
-							udpClient.Client.SetSocketOption(
-								SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-
-							IPEndPoint localEp = new IPEndPoint(IPAddress.Any, clientPort);
-
-							udpClient.Client.Bind(localEp);
-						}
+                    handler(ev);
+                }
+                catch (Exception ex) { }
+            }
+        }
 
 
-						udpSocketState = UDPSocketState.SENDING_MESSAGE;
+        public void MessageReceived(byte[] data, string ipHost, int portHost)
+        {
 
-						string new_pack = callbackID+":"+_pack;
+            //Debug.Log(string.Format("Received data:: {0} of IP:: {1} and Port:: {2}", Encoding.UTF8.GetString (data), ipHost, portHost));
 
-						byte[] data = Encoding.UTF8.GetBytes (new_pack.ToString ()); //convert to bytes
+        }
 
-						#if UNITY_ANDROID && !UNITY_EDITOR
+        /// <summary>
+        /// listening server messages.
+        /// </summary>
+        /// <param name="ev">Callback name</param>
+        /// <param name="callback">Callback function.</param>
+        public void On(string ev, Action<SocketUDPEvent> callback)
+        {
+            if (!handlers.ContainsKey(ev))
+            {
+
+                handlers[ev] = new List<Action<SocketUDPEvent>>();
+            }
+
+            handlers[ev].Add(callback);
+        }
+
+        /// <summary>
+        /// Emit the pack or message to server.
+        /// </summary>
+        /// <param name="callbackID">Callback ID.</param>
+        /// <param name="_pack">message</param>
+        public void Emit(string callbackID, string _pack)
+        {
+
+            try
+            {
+
+                if (udpSocketState == UDPSocketState.CONNECTED)
+                {
+                    lock (udpClientLock)
+                    {
+
+                        if (udpClient == null)
+                        {
+                            udpClient = new UdpClient();
+
+                            udpClient.ExclusiveAddressUse = false;
+
+                            udpClient.Client.SetSocketOption(
+                                SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+
+                            IPEndPoint localEp = new IPEndPoint(IPAddress.Any, clientPort);
+
+                            udpClient.Client.Bind(localEp);
+                        }
+
+
+                        udpSocketState = UDPSocketState.SENDING_MESSAGE;
+
+                        string new_pack = callbackID + ":" + _pack;
+
+                        byte[] data = Encoding.UTF8.GetBytes(new_pack.ToString()); //convert to bytes
+
+#if UNITY_ANDROID && !UNITY_EDITOR
 						var endPoint = new IPEndPoint(IPAddress.Parse( CaptiveReality.Jni.Util.StaticCall<string>("GetServerIP", "Invalid Response From JNI", "com.rio3dstudios.basicwifilocalmultiplayerplugin.IPManager")), serverPort);
                      
-						#else
-						var endPoint = new IPEndPoint(IPAddress.Parse(GetServerIP()), serverPort);
-                       
-						#endif
-						
-						try{
-						
-						 udpClient.EnableBroadcast = true;
-   	                     
-						 udpClient.Send(data, data.Length,endPoint);
-   
-                         }
-                         catch ( Exception e ){
+#else
+                        var endPoint = new IPEndPoint(IPAddress.Parse(GetServerIP()), serverPort);
 
-                          Console.WriteLine(e.ToString());	
-                         }
-						
+#endif
 
-						udpSocketState = UDPSocketState.CONNECTED;
-					}
-				}
-			}
-			catch(Exception e) {
-				listenerInput = e.InnerException.Message;
-			}
-		}
+                        try
+                        {
+
+                            udpClient.EnableBroadcast = true;
+
+                            udpClient.Send(data, data.Length, endPoint);
+
+                        }
+                        catch (Exception e)
+                        {
+
+                            Console.WriteLine(e.ToString());
+                        }
 
 
-		//get local server ip address
-		public string GetServerIP() {
-
-			serverIP = string.Empty;
-
-			string address = string.Empty;
-
-			string subAddress = string.Empty;
-
-			IPHostEntry host = Dns.GetHostEntry(Dns.GetHostName());
-
-			//search WiFI Local Network
-			foreach (IPAddress ip in host.AddressList) {
-				
-				if (ip.AddressFamily == AddressFamily.InterNetwork) {
-
-					if (!ip.ToString ().Contains ("127.0.0.1")) {
-						address = ip.ToString ();
-					}
-						
-				}
-			}
-				
-			if (address == string.Empty)
-			{
-				
-				noNetwork = true;
-
-				return string.Empty;
-			}
-			else
-			{
-				noNetwork = false;
-
-				subAddress = address.Remove(address.LastIndexOf('.'));
-
-				serverIP = subAddress + "." + 255;
-
-				return subAddress + "." + 255;
-			}
-			return string.Empty;
+                        udpSocketState = UDPSocketState.CONNECTED;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                listenerInput = e.InnerException.Message;
+            }
+        }
 
 
-		}
+        //get local server ip address
+        public string GetServerIP()
+        {
+
+            serverIP = string.Empty;
+
+            string address = string.Empty;
+
+            string subAddress = string.Empty;
+
+            IPHostEntry host = Dns.GetHostEntry(Dns.GetHostName());
+
+            //search WiFI Local Network
+            foreach (IPAddress ip in host.AddressList)
+            {
+
+                if (ip.AddressFamily == AddressFamily.InterNetwork)
+                {
+
+                    if (!ip.ToString().Contains("127.0.0.1"))
+                    {
+                        address = ip.ToString();
+                    }
+
+                }
+            }
+
+            if (address == string.Empty)
+            {
+
+                noNetwork = true;
+
+                return string.Empty;
+            }
+            else
+            {
+                noNetwork = false;
+
+                subAddress = address.Remove(address.LastIndexOf('.'));
+
+                serverIP = subAddress + "." + 255;
+
+                return subAddress + "." + 255;
+            }
+            return string.Empty;
 
 
-
-
-
-		private void OnDestroy() {
-			
-			disconnect ();
-		}
-
-		public void Update()
-		{
-			lock(eventQueueLock){ 
-				
-				while(eventQueue.Count > 0)
-				{
-
-					InvokEvent(eventQueue.Dequeue());
-				}
-			}
+        }
 
 
 
 
-		}
 
-		void OnApplicationQuit() {
+        private void OnDestroy()
+        {
 
-			disconnect ();
+            disconnect();
+        }
 
-		}
+        public void Update()
+        {
+            lock (eventQueueLock)
+            {
 
-		/// <summary>
-		/// Disconnect this client.
-		/// </summary>
-		public void disconnect() {
+                while (eventQueue.Count > 0)
+                {
 
-
-			lock (udpClientLock) {
-				
-				if (udpClient != null) {
-					
-					udpClient.Close();
-
-					udpClient = null;
-				}
-
-			}//END_LOCK
-
-			if (tListenner!=null) {
-				
-				tListenner.Abort ();
-			}
-
-		}
+                    InvokEvent(eventQueue.Dequeue());
+                }
+            }
 
 
-	}
+
+
+        }
+
+        void OnApplicationQuit()
+        {
+
+            disconnect();
+
+        }
+
+        /// <summary>
+        /// Disconnect this client.
+        /// </summary>
+        public void disconnect()
+        {
+
+
+            lock (udpClientLock)
+            {
+
+                if (udpClient != null)
+                {
+
+                    udpClient.Close();
+
+                    udpClient = null;
+                }
+
+            }//END_LOCK
+
+            if (tListenner != null)
+            {
+
+                tListenner.Abort();
+            }
+        }
+    }
 }

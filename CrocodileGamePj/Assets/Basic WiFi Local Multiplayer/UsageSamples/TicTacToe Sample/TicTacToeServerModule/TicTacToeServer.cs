@@ -16,13 +16,13 @@ namespace TicTacToeServerModule
 
     public class TicTacToeServer : MonoBehaviour
     {
-
+        //服务器单例
         public static TicTacToeServer instance;
 
-        //from UDP Client Module API
+        //from UDP Client Module API UDP客户端接口
         private UDPClientComponent udpClient;
-
-        public int serverSocketPort;
+        //端口号
+        public int serverSocketPort;    
 
         UdpClient udpServer;
 
@@ -41,9 +41,9 @@ namespace TicTacToeServerModule
         private EndPoint epFrom = new IPEndPoint(IPAddress.Any, 0);
 
         private AsyncCallback recv = null;
-
+        //UPD服务器状态
         public enum UDPServerState { DISCONNECTED, CONNECTED, ERROR, SENDING_MESSAGE };
-
+        //记录服务器状态
         public UDPServerState udpServerState;
 
         public string[] pack;
@@ -61,17 +61,14 @@ namespace TicTacToeServerModule
         public bool tryCreateServer;
 
         public bool waitingAnswer;
-
+        //面板设置为false
         public bool serverRunning;
-
-
+        //在线人数
         public int onlinePlayers;
 
-
-
         //store all players in game
+        //存放所有玩家
         public Dictionary<string, Client> connectedClients = new Dictionary<string, Client>();
-
 
         public class Client
         {
@@ -127,19 +124,15 @@ namespace TicTacToeServerModule
             {
                 case UDPServerState.DISCONNECTED:
                     return "DISCONNECTED";
-                    break;
 
                 case UDPServerState.CONNECTED:
                     return "CONNECTED";
-                    break;
 
                 case UDPServerState.SENDING_MESSAGE:
                     return "SENDING_MESSAGE";
-                    break;
 
                 case UDPServerState.ERROR:
                     return "ERROR";
-                    break;
             }
 
             return string.Empty;
@@ -147,7 +140,7 @@ namespace TicTacToeServerModule
 
 
         //get local server ip address
-        //获取本地id地址
+        //获取本地服务器ip
         public string GetServerIP()
         {
             IPHostEntry host = Dns.GetHostEntry(Dns.GetHostName());
@@ -233,13 +226,15 @@ namespace TicTacToeServerModule
 
 
         /// <summary>
+        /// 服务器端口号设置
         /// Starts the server.
         /// </summary>
         /// <param name="_serverPort">Server port.</param>
         public void StartServer(int _serverPort)
         {
+            Debug.Log("创建服务器");
 
-
+            //判断线程不为空，并且处于活跃状态
             if (tListenner != null && tListenner.IsAlive)
             {
 
@@ -249,31 +244,36 @@ namespace TicTacToeServerModule
 
             }
 
-            // set server port
+            //设置端口号
             this.serverSocketPort = _serverPort;
 
-            // start  listener thread
+            //开启监听线程
             tListenner = new Thread(
                 new ThreadStart(OnListeningClients));
 
+            //后台线程，此设置  线程 会随着 主线程 的退出而退出
             tListenner.IsBackground = true;
-
+            //启动线程 由NEW状态，变为RUNABLE状态
             tListenner.Start();
+
+            Debug.Log("创建服务器成功");
 
         }
 
 
         /// <summary>
+        /// 引发监听客户端事件
         /// Raises the listening clients event.
         /// </summary>
         public void OnListeningClients()
         {
+            Debug.Log("服务器监听函数");
 
             udpServer = new UdpClient(serverSocketPort);
 
-            udpServer.Client.ReceiveTimeout = 300; // msec
+            udpServer.Client.ReceiveTimeout = 300; // msec 超时设置
 
-
+            //服务器未停止
             while (stopServer == false)
             {
                 try
@@ -291,10 +291,15 @@ namespace TicTacToeServerModule
 
                     pack = receivedMsg.Split(Delimiter);
 
+                    Debug.Log("收到数据包");
+                    for (int i = 0; i < pack.Length; i++)
+                    {
+                        Debug.Log("pack["+i+"]--: "+pack[i]);
+                    }
 
                     switch (pack[0])
                     {
-
+                        //处理收到的不同数据包
                         case "PING":
                             OnReceivePing(pack, anyIP);//processes the received package
                             break;
@@ -320,7 +325,7 @@ namespace TicTacToeServerModule
                 }//END_TRY
                 catch (Exception err)
                 {
-                    //print(err.ToString());
+                    print("监听ERROR:" + err.ToString());
                 }
             }//END_WHILE
         }
@@ -355,48 +360,47 @@ namespace TicTacToeServerModule
             //format the data with the sifter comma for they be send from turn to udp client
             response = send_pack["callback_name"] + ':' + send_pack["msg"];
 
-            //buffering response in byte array
+            //将消息转化成二进制码
             msg = Encoding.ASCII.GetBytes(response);
-
+            //回复客户端
             udpServer.Send(msg, msg.Length, anyIP); // echo to client
         }
 
 
 
-
+        //响应加入游戏方法
         void OnReceiveJoinGame(string[] pack, IPEndPoint anyIP)
         {
 
             /*
-		        * pack[0] = CALLBACK_NAME: "JOIN_GAME"
-		        * pack[1] = player id
+		        * pack[0] = CALLBACK_NAME: "JOIN_GAME"  包名
+		        * pack[1] = player id    玩家id
 		    */
 
+            //判断玩家id是否存在
             if (!connectedClients.ContainsKey(pack[1]))
             {
-
-
                 var response = string.Empty;
 
                 byte[] msg = null;
-
+                //创建一个客户端连接
                 Client client = new Client();
 
                 client.id = pack[1];//set client id
 
-                //set  clients's port and ip address
+                //set  clients's port and ip address 字面意思
                 client.remoteEP = anyIP;
 
-                Debug.Log("[INFO] player " + client.id + ": logged!");
+                Debug.Log("[INFO] player " + client.id + ": 已记录!");
 
                 lock (connectedClientsLock)
                 {
-                    //add client in search engine
+                    //添加客户端到记录表中
                     connectedClients.Add(client.id.ToString(), client);
-
+                    //设置在线人数
                     onlinePlayers = connectedClients.Count;
 
-                    Debug.Log("[INFO] Total players: " + connectedClients.Count);
+                    Debug.Log("[INFO] Total players在游戏中的玩家数: " + connectedClients.Count);
 
                 }//END_LOCK
 
@@ -607,29 +611,28 @@ namespace TicTacToeServerModule
 
 
         /**
+         *  断开服务器
          *  DISCONNECTS SERVER
          */
         public void CloseServer()
         {
-
+            //更改服务器状态为断开
             udpServerState = UDPServerState.DISCONNECTED;
-
+            //标记服务器是否停止
             stopServer = true;
 
-
+            //停止udp服务区
             if (udpServer != null)
             {
                 udpServer.Close();
                 udpServer = null;
             }
-
+            //停止服务器监听线程
             if (tListenner != null)
             {
-
                 tListenner.Abort();
             }
 
         }
     }
-
 }
