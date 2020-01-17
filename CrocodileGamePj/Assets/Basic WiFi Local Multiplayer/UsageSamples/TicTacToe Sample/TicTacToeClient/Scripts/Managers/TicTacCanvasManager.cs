@@ -134,8 +134,8 @@ public class TicTacCanvasManager : MonoBehaviour {
 	{
 		loadingImg.enabled = true;
 
-
 	}
+
 	public void CloseLoadingImg()
 	{
 		loadingImg.enabled = false;

@@ -343,6 +343,7 @@ namespace TicTacToeServerModule
 		    */
 
             Debug.Log("receive ping");
+
             Dictionary<string, string> send_pack = new Dictionary<string, string>();
 
             Dictionary<string, string> data2 = new Dictionary<string, string>();
@@ -421,27 +422,25 @@ namespace TicTacToeServerModule
 
                     msg = Encoding.ASCII.GetBytes(response);
 
-                    //send answer to client that called me 
+                    //答复连接的客户端
                     udpServer.Send(msg, msg.Length, anyIP); // echo
 
-                    Debug.Log("[INFO]sended to first connected player : JOIN_SUCCESS");
+                    Debug.Log("[INFO]加入第一个玩家 : JOIN_SUCCESS");
 
 
 
                 }//END_IF
-                else if (onlinePlayers <= 2) // already exist a connected player waiting
+                else if (onlinePlayers <= 2) // 有其他玩家已经连接等待
                 {
 
                     send_pack["callback_name"] = "START_GAME";
 
                     //store  player info in msg field
                     send_pack["msg"] = "starting game for 2 players connected!";
-
-                    //sends the client sender to all clients in game
+                    Debug.Log("房间玩家数量>=2");
+                    //给所有客户端回复消息
                     foreach (KeyValuePair<string, Client> entry in connectedClients)
                     {
-
-                        //format the data with the sifter comma for they be send from turn to udp client
                         response = send_pack["callback_name"] + ':' + send_pack["msg"];
 
                         msg = Encoding.ASCII.GetBytes(response);
@@ -450,21 +449,13 @@ namespace TicTacToeServerModule
                         udpServer.Send(msg, msg.Length, entry.Value.remoteEP);
 
                     }//END_FOREACH
-
-
                 }//END_ELSE
-
             }//END_IF
-
-
         }
 
-
-
-
+        //回复消息刷新游戏面板
         void OnReceiveUpdateBoard(string[] pack, IPEndPoint anyIP)
         {
-
             /*
 		        * pack[0] = CALLBACK_NAME: "UPDATE_BOARD"
 		        * pack[1] = player_id
@@ -473,7 +464,7 @@ namespace TicTacToeServerModule
 				* pack[4] = j
 		    */
 
-            Debug.Log("receive update board");
+            Debug.Log("刷新面板receive update board");
 
             Dictionary<string, string> send_pack = new Dictionary<string, string>();
 
@@ -497,11 +488,13 @@ namespace TicTacToeServerModule
             foreach (KeyValuePair<string, Client> entry in connectedClients)
             {
 
-
                 Debug.Log("send update board");
                 //format the data with the sifter comma for they be send from turn to udp client
-                response = send_pack["callback_name"] + ':' + send_pack["player_id"] + ':' +
-                                                             send_pack["player_type"] + ':' + send_pack["i"] + ':' + send_pack["j"];
+                response = send_pack["callback_name"]
+                    + ':' + send_pack["player_id"]
+                    + ':' + send_pack["player_type"]
+                    + ':' + send_pack["i"]
+                    + ':' + send_pack["j"];
 
                 msg = Encoding.ASCII.GetBytes(response);
 
@@ -509,12 +502,9 @@ namespace TicTacToeServerModule
                 udpServer.Send(msg, msg.Length, entry.Value.remoteEP);
 
             }//END_FOREACH
-
-
-
         }
 
-
+        //结束游戏消息
         void OnReceiveGameOver(string[] pack, IPEndPoint anyIP)
         {
 
@@ -523,7 +513,7 @@ namespace TicTacToeServerModule
 		        * pack[1] = player_id
 		    */
 
-            Debug.Log("receive game over");
+            Debug.Log("receive game over广播结束游戏");
 
             Dictionary<string, string> send_pack = new Dictionary<string, string>();
 
@@ -533,17 +523,12 @@ namespace TicTacToeServerModule
 
             byte[] msg = null;
 
-
             //JSON package
             send_pack["callback_name"] = "GAME_OVER";
-
 
             //sends the client sender to all clients in game
             foreach (KeyValuePair<string, Client> entry in connectedClients)
             {
-
-
-
                 Debug.Log("send game over");
                 //format the data with the sifter comma for they be send from turn to udp client
                 response = send_pack["callback_name"] + ':' + send_pack["player_id"];
@@ -554,14 +539,12 @@ namespace TicTacToeServerModule
                 udpServer.Send(msg, msg.Length, entry.Value.remoteEP);
 
             }//END_FOREACH
-
+            //清空客户端列表
             connectedClients.Clear();//clear the players list
-
-
         }
 
 
-
+        //断开连接
         void OnReceiveDisconnect(string[] pack, IPEndPoint anyIP)
         {
             /*
@@ -569,15 +552,12 @@ namespace TicTacToeServerModule
 		     * data.pack[1]= player_id
 		     * data.pack[2]= isMasterServer (true or false)
 		    */
-
-
+            Debug.Log("有人断开了连接");
             Dictionary<string, string> send_pack = new Dictionary<string, string>();
-
 
             var response = string.Empty;
 
             byte[] msg = null;
-
 
             //JSON package
             send_pack["callback_name"] = "USER_DISCONNECTED";
@@ -593,7 +573,6 @@ namespace TicTacToeServerModule
             //sends the client sender to all clients in game
             foreach (KeyValuePair<string, Client> entry in connectedClients)
             {
-
                 Debug.Log("send disconnect");
 
                 //send answer to all clients in connectClients list
@@ -602,9 +581,6 @@ namespace TicTacToeServerModule
             }//END_FOREACH
 
             connectedClients.Clear();//clear the players list
-
-
-
         }
 
 
