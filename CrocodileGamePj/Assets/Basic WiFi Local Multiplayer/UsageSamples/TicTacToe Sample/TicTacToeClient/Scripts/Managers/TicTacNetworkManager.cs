@@ -68,6 +68,7 @@ public class TicTacNetworkManager : MonoBehaviour
             udpClient = gameObject.GetComponent<UDPClientComponent>();
 
             //find any  server in others hosts
+            //寻找服务器执行相对ui方法
             ConnectToUDPServer();
         }
         else
@@ -83,11 +84,9 @@ public class TicTacNetworkManager : MonoBehaviour
     /// </summary>
     public void ConnectToUDPServer()
     {
-
-
         if (udpClient.GetServerIP() != string.Empty)
         {
-
+            Debug.Log("执行相应ui方法"); 
             //connect to TicTacttoeServer
             udpClient.connect(udpClient.GetServerIP(), serverPort, clientPort);
 
@@ -102,11 +101,7 @@ public class TicTacNetworkManager : MonoBehaviour
             udpClient.On("GAME_OVER", OnGameOver);
 
             udpClient.On("USER_DISCONNECTED", OnUserDisconnected);
-
-
         }
-
-
     }
 
     void Update()
@@ -300,14 +295,16 @@ public class TicTacNetworkManager : MonoBehaviour
         Debug.Log("\n joining ...\n");
 
         // open game screen only for the first player, as the second has not logged in yet
+        //加入房间打开游戏UI面板
         TicTacCanvasManager.instance.OpenScreen(1);
 
         Debug.Log("try to loading board");
 
-        // load the board only for the first player, because the second one hasn't logged in yet
+        //初始化棋盘 load the board only for the first player, because the second one hasn't logged in yet
         BoardManager.instance.LoadBoard();
 
         // set square to the first player to connect
+        // 应该是设置玩家棋子类型
         SetPlayerType("square");
 
         TicTacCanvasManager.instance.txtHeader.text = "You are player O";
@@ -320,6 +317,7 @@ public class TicTacNetworkManager : MonoBehaviour
 
 
     /// <summary>
+    /// 游戏开始
     /// Raises the start game event.
     /// both players receive this response from the server
     /// </summary>
@@ -328,7 +326,7 @@ public class TicTacNetworkManager : MonoBehaviour
     {
         Debug.Log("\n game is runing...\n");
 
-
+        // 查看玩家棋子类型
         // check if it's the first player to connect
         if (GetPlayerType().Equals("square"))
         {
@@ -352,18 +350,14 @@ public class TicTacNetworkManager : MonoBehaviour
             BoardManager.instance.LoadBoard();
         }
 
-
-
         // check if you are the first player to connect
         if (myTurn)
         {
-
-
-            TicTacCanvasManager.instance.txtFooter.text = "Your move";
+            TicTacCanvasManager.instance.txtFooter.text = "您的回合";
         }
         else
         {
-            TicTacCanvasManager.instance.txtFooter.text = "Opponent move";
+            TicTacCanvasManager.instance.txtFooter.text = "对手回合";
         }
 
         Debug.Log("\n game loaded...\n");
@@ -372,27 +366,24 @@ public class TicTacNetworkManager : MonoBehaviour
 
 
     /// <summary>
+    /// 落棋子，更新棋盘
     /// Emits the update board to TictactToeServer
     /// </summary>
     public void EmitUpdateBoard(int i, int j)
     {
+        Debug.Log("客户端落子，告知服务器");
+
         Dictionary<string, string> data = new Dictionary<string, string>();//pacote JSON
 
-        // now the turn belongs to the opposing player
+        // 更改自身回合标记 -- now the turn belongs to the opposing player
         myTurn = false;
 
-        TicTacCanvasManager.instance.txtFooter.text = "Opponent move";
-
+        TicTacCanvasManager.instance.txtFooter.text = "对手回合Opponent move";
 
         data["callback_name"] = "UPDATE_BOARD";
-
         data["player_id"] = myId;
-
         data["player_type"] = GetPlayerType();
-
-
         data["i"] = i.ToString();
-
         data["j"] = j.ToString();
 
         //send the message  to ticTacttoeServer
@@ -403,114 +394,97 @@ public class TicTacNetworkManager : MonoBehaviour
 
     }
 
-
-
     /// <summary>
+    /// 下棋更新面板
     /// updates the board with information from TicTactToeServer
     /// </summary>
-
     void OnUpdateBoard(SocketUDPEvent data)
     {
-
         /*
 		 * data.data.pack[0] = CALLBACK_NAME: "UPDATE_BOARD" from server
-		 * data.data.pack[1] = id of the opponent who made the last move
+		 * data.data.pack[1] = 最后一步玩家id -- id of the opponent who made the last move
 		 * data.data.pack[2] = player_type
 		 * data.data.pack[3]= j
 		 * data.data.pack[4] = i
-
 		*/
 
         // how the server message is transmitted to both players,
         // we should check if we are the next player to play, message target
         //data.pack[1] stores the id of the player who finished his move
+        //如果落子玩家不是此客户端
         if (!data.pack[1].Equals(myId))
         {
-
+            //设置棋盘落子行列值
             // set row i and column j which should be updated in BoardManager
             BoardManager.instance.current_i = int.Parse(data.pack[3]);
-
             // set row i and column j which should be updated in BoardManager
             BoardManager.instance.current_j = int.Parse(data.pack[4]);
-
-
+            //检查是什么类型的棋子落下
             // check the type of cell to update O or X
             if (data.pack[2].Equals("square"))
             {
-
                 BoardManager.instance.SpawnSquare();
-
             }
             else
             {
                 BoardManager.instance.SpawnX();
             }
-
+            //此客户端的回合
             TicTacCanvasManager.instance.txtFooter.text = "Your move";
 
             myTurn = true;
         }
-
-
-
     }
 
 
     /// <summary>
+    /// 通知服务器获得胜利
     /// Send a message to the server to notify you that the next player has lost the game.
     /// </summary>
     public void EmitGameOver()
     {
+        Debug.Log("通知服务器 "+ myId + " 玩家获胜");
+
         Dictionary<string, string> data = new Dictionary<string, string>();//pacote JSON
 
         myTurn = false;
 
         TicTacCanvasManager.instance.txtFooter.text = " ";
 
-
-        data["callback_name"] = "GAME_OVER";
-
-        data["player_id"] = myId;
+        data["callback_name"] = "GAME_OVER";    //数据包类型
+        data["player_id"] = myId;               //获胜玩家id
 
         string msg = data["player_id"];
 
-
         //sends to the server through socket UDP the msg package 
         udpClient.Emit(data["callback_name"], msg);
-
     }
 
-
     /// <summary>
+    /// 服务器广播的结束游戏方法
     /// get the server update that the player of this instance lost the game
     /// </summary>
-
     void OnGameOver(SocketUDPEvent data)
     {
-
         /*
 		 * data.data.pack[0] = CALLBACK_NAME: "GAME_OVER" from server
 		 * data.data.pack[1] = player_id
-		
 		*/
 
         // how the server message is transmitted to both players,
         // we should check if we are the next player to play, the loser
         //data.pack[1] stores the id of the player who won the match
-
+        //判断此客户端是否不是赢家，重置游戏
         if (!data.pack[1].Equals(myId))
         {
             BoardManager.instance.ResetGameForLoserPlayer();
         }
-
         myTurn = false;
-
-
-
     }
 
 
     /// <summary>
+    /// 客户端断开连接 通知服务器
     /// Emits the disconnect to server
     /// </summary>
     void EmitDisconnect()
@@ -520,12 +494,11 @@ public class TicTacNetworkManager : MonoBehaviour
 
         //JSON package
         data["callback_name"] = "disconnect";
-
         data["local_player_id"] = myId;
 
+        //如果这个客户端的服务器正在运行
         if (TicTacToeServer.instance.serverRunning)
         {
-
             data["isMasterServer"] = "true";
         }
         else
@@ -533,54 +506,51 @@ public class TicTacNetworkManager : MonoBehaviour
             data["isMasterServer"] = "false";
         }
 
-
         string msg = data["local_player_id"] + ":" + data["isMasterServer"];
 
-        Debug.Log("emit disconnect");
+        Debug.Log("发送客户端 断开连接消息emit disconnect");
 
         udpClient.Emit(data["callback_name"], msg);
 
+        //如果这个客户端的服务器正在运行，关闭服务器
+        //不知道为啥分开在判断一次，让服务器有个响应过程？
         if (TicTacToeServer.instance.serverRunning)
         {
             TicTacToeServer.instance.CloseServer();
+            Debug.Log("本地服务器关闭");
         }
 
+        //断开连接-客户端接口置空
         if (udpClient != null)
         {
-
             udpClient.disconnect();
-
-
         }
     }
 
     /// <summary>
+    /// 服务器断开连接回调函数
     /// inform the local player to destroy offline network player
     /// </summary>
     void OnUserDisconnected(SocketUDPEvent data)
     {
-
         /*
 		 * data.pack[0]  = USER_DISCONNECTED
 		 * data.pack[1] = id (network player id)
 		 * data.pack[2] = isMasterServer
 		*/
-        Debug.Log("disconnect!");
+        Debug.Log("断开连接disconnect!");
 
+        //如果点开链接的客户端是服务器，此客户端重置游戏
         // check if the disconnected player was the master server
         if (bool.Parse(data.pack[2]))
         {
-
-
             RestartGame();
         }
         else
         {
-
+            //? ? ?
             BoardManager.instance.ResetGameForWOPlayer();
-
             myTurn = false;
-
         }
 
 
@@ -588,43 +558,36 @@ public class TicTacNetworkManager : MonoBehaviour
 
     public void RestartGame()
     {
-
         serverFound = false;
 
         TicTacCanvasManager.instance.OpenScreen(0);
-
     }
 
-
+    //断开客户端连接方法
     void CloseApplication()
     {
-
         if (udpClient != null)
         {
-
             EmitDisconnect();
 
             udpClient.disconnect();
-
         }
     }
 
-
+    //当应用被关闭时执行
     void OnApplicationQuit()
     {
-
-        Debug.Log("Application ending after " + Time.time + " seconds");
+        Debug.Log("程序结束 Application ending after " + Time.time + " seconds");
 
         CloseApplication();
-
     }
 
 
+    //获得当前下棋玩家类型
     public string GetPlayerType()
     {
         switch (playerType)
         {
-
             case PlayerType.SQUARE:
                 return "square";
                 break;
@@ -643,9 +606,10 @@ public class TicTacNetworkManager : MonoBehaviour
     /// <param name="_userType">User type.</param>
     public void SetPlayerType(string _playerType)
     {
+        Debug.Log("设置玩家棋子类型是： "+_playerType);
         switch (_playerType)
         {
-
+            
             case "square":
                 playerType = PlayerType.SQUARE;
                 break;

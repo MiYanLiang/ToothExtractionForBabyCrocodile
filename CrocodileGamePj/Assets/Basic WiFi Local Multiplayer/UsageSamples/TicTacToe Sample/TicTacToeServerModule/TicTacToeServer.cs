@@ -472,22 +472,16 @@ namespace TicTacToeServerModule
 
             byte[] msg = null;
 
-
             //JSON package
             send_pack["callback_name"] = "UPDATE_BOARD";
-
             send_pack["player_id"] = pack[1];
-
             send_pack["player_type"] = pack[2];
-
             send_pack["i"] = pack[3];
-
             send_pack["j"] = pack[4];
 
             //sends the client sender to all clients in game
             foreach (KeyValuePair<string, Client> entry in connectedClients)
             {
-
                 Debug.Log("send update board");
                 //format the data with the sifter comma for they be send from turn to udp client
                 response = send_pack["callback_name"]
@@ -507,7 +501,6 @@ namespace TicTacToeServerModule
         //结束游戏消息
         void OnReceiveGameOver(string[] pack, IPEndPoint anyIP)
         {
-
             /*
 		        * pack[0] = CALLBACK_NAME: "GAME_OVER"
 		        * pack[1] = player_id
@@ -544,7 +537,7 @@ namespace TicTacToeServerModule
         }
 
 
-        //断开连接
+        //广播断开连接消息
         void OnReceiveDisconnect(string[] pack, IPEndPoint anyIP)
         {
             /*
@@ -552,7 +545,7 @@ namespace TicTacToeServerModule
 		     * data.pack[1]= player_id
 		     * data.pack[2]= isMasterServer (true or false)
 		    */
-            Debug.Log("有人断开了连接");
+            Debug.Log("服务器回复 有人断开了连接");
             Dictionary<string, string> send_pack = new Dictionary<string, string>();
 
             var response = string.Empty;
@@ -560,10 +553,8 @@ namespace TicTacToeServerModule
             byte[] msg = null;
 
             //JSON package
-            send_pack["callback_name"] = "USER_DISCONNECTED";
-
+            send_pack["callback_name"] = "USER_DISCONNECTED";   //回复的包名
             send_pack["msg"] = pack[1];
-
             send_pack["isMasterServer"] = pack[2];
 
             response = send_pack["callback_name"] + ':' + send_pack["msg"] + ':' + send_pack["isMasterServer"];
@@ -608,7 +599,6 @@ namespace TicTacToeServerModule
             {
                 tListenner.Abort();
             }
-
         }
     }
 }

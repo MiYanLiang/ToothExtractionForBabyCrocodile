@@ -386,18 +386,15 @@ namespace UDPClientModule
         }
 
         /// <summary>
+        /// 断开此客户端的连接。
         /// Disconnect this client.
         /// </summary>
         public void disconnect()
         {
-
-
             lock (udpClientLock)
             {
-
                 if (udpClient != null)
                 {
-
                     udpClient.Close();
 
                     udpClient = null;
@@ -407,7 +404,6 @@ namespace UDPClientModule
 
             if (tListenner != null)
             {
-
                 tListenner.Abort();
             }
         }
