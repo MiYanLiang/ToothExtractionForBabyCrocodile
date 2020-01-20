@@ -55,6 +55,8 @@ namespace UDPClientModule
 
         public void Awake()
         {
+            Debug.Log("UDPClientComponent_Awake()");
+
             handlers = new Dictionary<string, List<Action<SocketUDPEvent>>>();
 
             eventQueueLock = new object();

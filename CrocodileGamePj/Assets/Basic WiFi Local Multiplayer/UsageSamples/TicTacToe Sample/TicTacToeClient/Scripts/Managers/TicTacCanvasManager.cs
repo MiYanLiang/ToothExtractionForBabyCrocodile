@@ -39,6 +39,7 @@ public class TicTacCanvasManager : MonoBehaviour {
 	
 	// Use this for initialization
 	void Start () {
+        Debug.Log("TicTacCanvasManager.cs - start() 面板控制类设置成单例类");
 
 		if (instance == null) {
 

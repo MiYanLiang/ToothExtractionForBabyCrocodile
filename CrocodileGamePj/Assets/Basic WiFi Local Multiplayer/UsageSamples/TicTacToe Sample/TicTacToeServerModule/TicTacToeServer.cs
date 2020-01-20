@@ -97,6 +97,7 @@ namespace TicTacToeServerModule
         // Use this for initialization
         void Start()
         {
+            Debug.Log("TicTacToeServer_start() 服务器类");
 
             // if don't exist an instance of this class
             if (instance == null)

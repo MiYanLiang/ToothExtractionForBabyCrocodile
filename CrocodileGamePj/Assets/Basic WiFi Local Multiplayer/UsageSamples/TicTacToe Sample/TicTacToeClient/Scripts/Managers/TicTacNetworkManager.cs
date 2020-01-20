@@ -56,6 +56,7 @@ public class TicTacNetworkManager : MonoBehaviour
     // Use this for initialization
     void Start()
     {
+        Debug.Log("TicTacNetworkManager_start() 网络传输控制类，负责与服务器交互");
         //创建单例类
         // if don't exist an instance of this class
         if (instance == null)
