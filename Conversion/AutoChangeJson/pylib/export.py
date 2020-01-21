@@ -14,11 +14,12 @@ import e_base
 #py_file
 
 import e_createJson_TestTable
-
+import e_createJson_GameTypeTable
 
 taskList = (
 
 	('/小鳄鱼数据表.xlsx', e_createJson_TestTable, '/TestTable.json'),
+	('/小鳄鱼数据表.xlsx', e_createJson_GameTypeTable, '/GameTypeTable.json'),
 )
 
 

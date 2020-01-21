@@ -7,15 +7,44 @@ using System.Runtime.Serialization.Formatters.Binary;
 
 public class LoadJsonFile : MonoBehaviour
 {
+    public static LoadJsonFile instance;
+
     //Resources文件夹下
-    public static readonly string Folder = "Jsons/";
+    private static readonly string Folder = "Jsons/";
     //存放json数据名(用;分号分开)
-    private static readonly string tableNameStrs = "TestTable";
+    private static readonly string tableNameStrs = "TestTable;GameTypeTable";
 
     /// <summary>
     /// Test数据表
     /// </summary>
-    public static List<List<string>> TestTableDates;
+    public List<List<string>> TestTableDates;
+    /// <summary>
+    /// 游戏类型表
+    /// </summary>
+    public List<List<string>> GameTypeTableDates;
+
+
+
+    private void Awake()
+    {
+        if (instance == null)
+        {
+            DontDestroyOnLoad(gameObject);//跳转场景等不销毁
+
+            instance = this;
+        }
+        else
+        {
+            Destroy(this.gameObject);
+        }
+
+        string[] arrStr = tableNameStrs.Split(';');
+        if (arrStr.Length > 0)
+            JsonDataToSheets(arrStr);   //传递Json文件名进行加载
+        else
+            Debug.Log("////请检查Json表名");
+    }
+
 
     /// <summary>
     /// 加载json文件获取数据至链表中
@@ -44,6 +73,22 @@ public class LoadJsonFile : MonoBehaviour
             indexTable++;
             //Debug.Log("Json文件加载成功---" + tableNames[indexTable] + ".Json");
         }
+        //游戏大厅游戏类型:GameTypeTable
+        {
+            jsonData = LoadJsonByName(tableNames[indexTable]);
+            root = JsonMapper.ToObject<Roots>(jsonData);
+            GameTypeTableDates = new List<List<string>>(root.GameTypeTable.Count);
+            for (int i = 0; i < root.GameTypeTable.Count; i++)
+            {
+                GameTypeTableDates.Add(new List<string>());
+                GameTypeTableDates[i].Add(root.GameTypeTable[i].id);
+                GameTypeTableDates[i].Add(root.GameTypeTable[i].gameName);
+                GameTypeTableDates[i].Add(root.GameTypeTable[i].numberOfRooms);
+                GameTypeTableDates[i].Add(root.GameTypeTable[i].isUnlock);
+            }
+            indexTable++;
+            //Debug.Log("Json文件加载成功---" + tableNames[indexTable] + ".Json");
+        }
 
         if (indexTable >= tableNames.Length)
             Debug.Log("所有Json数据加载成功。");
@@ -57,7 +102,7 @@ public class LoadJsonFile : MonoBehaviour
     /// <typeparam name="T"></typeparam>
     /// <param name="List">The list.</param>
     /// <returns>List{``0}.</returns>
-    public static List<T> DeepClone<T>(object List)
+    public List<T> DeepClone<T>(object List)
     {
         using (Stream objectStream = new MemoryStream())
         {
@@ -68,23 +113,12 @@ public class LoadJsonFile : MonoBehaviour
         }
     }
 
-    private void Awake()
-    {
-        string[] arrStr = tableNameStrs.Split(';');
-        if (arrStr.Length > 0)
-            JsonDataToSheets(arrStr);   //传递Json文件名进行加载
-        else
-            Debug.Log("////请检查Json表名");
-        DontDestroyOnLoad(gameObject);//跳转场景等不销毁
-    }
-
-
     /// <summary>
     /// 通过json文件名获取json数据
     /// </summary>
     /// <param name="fileName"></param>
     /// <returns></returns>
-    public static string LoadJsonByName(string fileName)
+    private string LoadJsonByName(string fileName)
     {
         string path = string.Empty;
         string data = string.Empty;

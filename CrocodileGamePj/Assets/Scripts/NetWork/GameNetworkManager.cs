@@ -12,7 +12,14 @@ public class GameNetworkManager : MonoBehaviour
     public static GameNetworkManager instance;
 
     public int clientPort = 4001;
-    
+
+    [HideInInspector]
+    public int gameTypeIndex;   //所选游戏类型
+
+    private void Awake()
+    {
+        gameTypeIndex = -1;
+    }
 
     private void Start()
     {
