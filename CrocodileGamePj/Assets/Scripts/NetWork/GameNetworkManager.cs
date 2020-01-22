@@ -13,12 +13,15 @@ public class GameNetworkManager : MonoBehaviour
 
     public int clientPort = 4001;
 
-    [HideInInspector]
     public int gameTypeIndex;   //所选游戏类型
+
+    public bool serverFound;
+
 
     private void Awake()
     {
         gameTypeIndex = -1;
+        serverFound = false;
     }
 
     private void Start()

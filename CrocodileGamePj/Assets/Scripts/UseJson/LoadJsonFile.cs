@@ -23,8 +23,6 @@ public class LoadJsonFile : MonoBehaviour
     /// </summary>
     public List<List<string>> GameTypeTableDates;
 
-
-
     private void Awake()
     {
         if (instance == null)
