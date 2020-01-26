@@ -9,11 +9,15 @@ public class StaticManager
     public static readonly int serverPort = 4000;
     public static readonly int serverPort2 = 4001;
 
-    //数据包包名
+    //发起包名
     public static readonly string ping_packName = "PING";
     public static readonly string joinGame_packName = "JOIN_GAME";
     public static readonly string sendNews_packName = "SEND_NEWS";
     public static readonly string disconnect_packName = "DISCONNECT";
     public static readonly string gameOver_packName = "GAME_OVER";
+    //回复包名
+    public static readonly string pong_receivePackName = "PONG";
+    public static readonly string joinSuccess_receivePackName = "JOIN_SUCCESS";
+    public static readonly string userDisconnect_receivePackName = "USER_DISCONNECTED";
 
 }

@@ -18,7 +18,7 @@ namespace GameServerModule
         [HideInInspector]
         public int gameTypeIndex;   //所选游戏类型
 
-        private bool serverRunning; //服务器是否运行
+        public bool serverRunning; //服务器是否运行
 
         private Thread tListenner;
 
@@ -191,7 +191,7 @@ namespace GameServerModule
             string response = string.Empty;
             byte[] msg = null;
 
-            send_pack["callback_name"] = "USER_DISCONNECTED";   //回复的包名
+            send_pack["callback_name"] = StaticManager.userDisconnect_receivePackName;   //回复的包名
             send_pack["msg"] = pack[1];
             send_pack["isMasterServer"] = pack[2];
 
@@ -200,10 +200,9 @@ namespace GameServerModule
 
             foreach (KeyValuePair<string, Client> entry in connectedClients)
             {
-                Debug.Log("send disconnect");
+                Debug.Log("广播断开连接");
                 
                 udpServer.Send(msg, msg.Length, entry.Value.remoteEP);
-
             }
             connectedClients.Clear();
         }
@@ -234,10 +233,10 @@ namespace GameServerModule
 
                 Dictionary<string, string> send_pack = new Dictionary<string, string>();
 
-                if (onlinePlayers < 123)  //当前游戏的最大房间人数
+                if (onlinePlayers < int.Parse(LoadJsonFile.instance.GameTypeTableDates[gameTypeIndex][2]))  //当前游戏的最大房间人数
                 {
-                    send_pack["callback_name"] = "JOIN_SUCCESS";
-                    send_pack["msg"] = "Player joined!";
+                    send_pack["callback_name"] = StaticManager.joinSuccess_receivePackName;
+                    send_pack["msg"] = client.id + "Player joined!";
 
                     response = send_pack["callBack_name"] + ':' + send_pack["msg"];
 
@@ -267,7 +266,7 @@ namespace GameServerModule
 
             byte[] msg = null;
 
-            send_pack["callback_name"] = "PONE";
+            send_pack["callback_name"] = StaticManager.pong_receivePackName;
             send_pack["msg"] = "pong.";
 
             response = send_pack["callback_name"] + ':' + send_pack["msg"];
