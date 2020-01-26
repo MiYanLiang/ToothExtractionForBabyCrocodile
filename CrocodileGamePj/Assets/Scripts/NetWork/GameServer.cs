@@ -77,7 +77,12 @@ namespace GameServerModule
                     }
                     else
                     {
-                        MainSceneCanvasMg.instance.ShowAlertDialog("服务器已在网络上运行");
+                        //MainSceneCanvasMg.instance.ShowAlertDialog("aaa");
+                        //StartServer(8888);
+                        //serverRunning = true;
+                        //MainSceneCanvasMg.instance.CreateServerRoom("5417");
+                        //MainSceneCanvasMg.instance.ShowAlertDialog("服务器运行成功");
+                        //Debug.Log("UDP Server listening on IP " + GetServerIP() + " and port " + 8888);
                     }
                 }
             }
