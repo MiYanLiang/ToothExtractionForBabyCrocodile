@@ -32,6 +32,24 @@ namespace GameServerModule
 
         private int serverSocketPort;
 
+        private Dictionary<string, Client> connectedClients = new Dictionary<string, Client>();
+
+        private readonly object connectedClientsLock = new object();
+
+        private int onlinePlayers;
+
+        private class Client
+        {
+            public string id;
+
+            public string type;
+
+            public float timeOut = 0f;
+
+            public IPEndPoint remoteEP;
+
+        }
+
         private void Awake()
         {
             gameTypeIndex = -1;
@@ -77,6 +95,7 @@ namespace GameServerModule
                     }
                     else
                     {
+                        MainSceneCanvasMg.instance.ShowAlertDialog("服务器已在网络上运行！");
                         //MainSceneCanvasMg.instance.ShowAlertDialog("aaa");
                         //StartServer(8888);
                         //serverRunning = true;
@@ -109,8 +128,7 @@ namespace GameServerModule
             tListenner.Start();
         }
 
-        string receivedMsg = string.Empty;
-        string[] pack;
+        
 
         //服务器监听函数
         private void OnListeningClients()
@@ -121,17 +139,38 @@ namespace GameServerModule
             {
                 try
                 {
+                    string receivedMsg = string.Empty;
+                    string[] pack;
                     udpServerState = UDPServerState.CONNECTED;
                     IPEndPoint anyIP = new IPEndPoint(IPAddress.Any, 0);
                     byte[] data = udpServer.Receive(ref anyIP);
                     receivedMsg = Encoding.ASCII.GetString(data);
                     pack = receivedMsg.Split(StaticManager.DELIMITER);
 
-                    switch (pack[0])
+                    //switch (pack[0])
+                    //{
+                    //    //处理收到的不同数据包
+
+                    //    default:
+                    //        break;
+                    //}
+                    if (pack[0] == StaticManager.ping_packName)
                     {
-                        //处理收到的不同数据包
-                        default:
-                            break;
+                        OnReceivePing(pack, anyIP);
+                    }
+                    else
+                    {
+                        if (pack[0] == StaticManager.joinGame_packName)
+                        {
+                            OnReceiveJoinGame(pack, anyIP);
+                        }
+                        else
+                        {
+                            if (pack[0] == StaticManager.disconnect_packName)
+                            {
+                                OnReceiveDisconnect(pack, anyIP);
+                            }
+                        }
                     }
                 }
                 catch (Exception err)
@@ -141,6 +180,104 @@ namespace GameServerModule
             }
         }
 
+        private void OnReceiveDisconnect(string[] pack, IPEndPoint anyIP)
+        {
+            /*
+		     * data.pack[0]= CALLBACK_NAME: "disconnect"
+		     * data.pack[1]= player_id
+		     * data.pack[2]= isMasterServer (true or false)
+		    */
+            Dictionary<string, string> send_pack = new Dictionary<string, string>();
+            string response = string.Empty;
+            byte[] msg = null;
+
+            send_pack["callback_name"] = "USER_DISCONNECTED";   //回复的包名
+            send_pack["msg"] = pack[1];
+            send_pack["isMasterServer"] = pack[2];
+
+            response = send_pack["callback_name"] + ':' + send_pack["msg"] + ':' + send_pack["isMasterServer"];
+            msg = Encoding.ASCII.GetBytes(response);
+
+            foreach (KeyValuePair<string, Client> entry in connectedClients)
+            {
+                Debug.Log("send disconnect");
+                
+                udpServer.Send(msg, msg.Length, entry.Value.remoteEP);
+
+            }
+            connectedClients.Clear();
+        }
+
+        private void OnReceiveJoinGame(string[] pack, IPEndPoint anyIP)
+        {
+            /*
+		        * pack[0] = CALLBACK_NAME: "JOIN_GAME"
+		        * pack[1] = player id
+		    */
+            if (!connectedClients.ContainsKey(pack[1]))
+            {
+                string response = string.Empty;
+
+                byte[] msg = null;
+
+                Client client = new Client();
+
+                client.id = pack[1];
+                client.remoteEP = anyIP;
+
+                lock (connectedClientsLock)
+                {
+                    connectedClients.Add(client.id.ToString(), client);
+
+                    onlinePlayers = connectedClients.Count;
+                }
+
+                Dictionary<string, string> send_pack = new Dictionary<string, string>();
+
+                if (onlinePlayers < 123)  //当前游戏的最大房间人数
+                {
+                    send_pack["callback_name"] = "JOIN_SUCCESS";
+                    send_pack["msg"] = "Player joined!";
+
+                    response = send_pack["callBack_name"] + ':' + send_pack["msg"];
+
+                    msg = Encoding.ASCII.GetBytes(response);
+
+                    udpServer.Send(msg, msg.Length, anyIP);
+                }
+                else
+                {
+                    //人数满了应该的操作
+                }
+            }
+
+
+        }
+
+        private void OnReceivePing(string[] pack, IPEndPoint anyIP)
+        {
+            /*
+                * pack[0] = CALLBACK_NAME: "PONG"
+                * pack[1] = "ping"
+            */
+
+            Dictionary<string, string> send_pack = new Dictionary<string, string>();
+
+            string response = string.Empty;
+
+            byte[] msg = null;
+
+            send_pack["callback_name"] = "PONE";
+            send_pack["msg"] = "pong.";
+
+            response = send_pack["callback_name"] + ':' + send_pack["msg"];
+
+            msg = Encoding.ASCII.GetBytes(response);
+
+            udpServer.Send(msg, msg.Length, anyIP);
+        }
+
+        //断开服务器
         private void CloseServer()
         {
             udpServerState = UDPServerState.DISCONNECTED;
@@ -166,11 +303,12 @@ namespace GameServerModule
 
             string address = string.Empty;
             string subAddress = string.Empty;
-
+            
             foreach (IPAddress ip in host.AddressList)
             {
                 if (ip.AddressFamily == AddressFamily.InterNetwork)
                 {
+                    Debug.Log("网内ip: " + ip.ToString());
                     if (!ip.ToString().Contains("127.0.0.1"))
                     {
                         address = ip.ToString();
